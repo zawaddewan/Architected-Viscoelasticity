@@ -70,7 +70,7 @@ parameters.parse()
 userpar = Parameters("user")
 userpar.add("Mu", 1.0)                      # Shear Modulus
 userpar.add("Mu_v", 1.0)                    # Viscoelastic Shear Modulus
-userpar.add("Tau", 1.0)                      # Relaxation Parameter
+userpar.add("Tau", 10000.0)                      # Relaxation Parameter
 userpar.add("Kappa", 1.0)                    # Bulk Modulus
 userpar.add("eta", 5.0)                     # Artificial Viscosity
 userpar.add("dt", 1.0)                      # Quasi-Timestep
@@ -464,9 +464,9 @@ J = det(F)                          # Third Invariant
 F_bar = (J**(-1/3))*F
 C_bar = F_bar.T*F_bar
 
-# Internal Variable
-A = Function(ST)
-A.assign(Constant(((1, 0), (0, 1)))) # Initialize to Identity
+A_int = Function(ST)
+A_int.assign(Constant(((1, 0), (0, 1))))
+A_new = exp(-dt/Tau)*A_int + (1 - exp(-dt/Tau))*inv(C_bar)
 
 # Define the Strain Energy Density Function
 # -----------------------------------------------------------------------------------
@@ -492,7 +492,7 @@ psiNC = (r_a/2.0)*((1/2)*(1 - phi)**2 - beta*(1 - phi))**2
 psi_coup = r_c*((J - phi)**2) + r_l2*dot(grad(phi), grad(phi)) 
 
 # Viscoelastic Part
-psi_vis = (Mu_v/2) * (tr(A*C_bar) + 1 - 3 - ln(det(A)))
+psi_vis = (Mu_v/2) * (tr(A_int*C_bar) + 1 - 3 - ln(det(A_int)))
 
 # Total Helmholtz Free Energy Density Function
 psi = psiC + psiNC + psi_coup + psi_vis
@@ -503,7 +503,7 @@ Pi = psi*dx
 
 # Define the Nominal Stress (first Piola-Kirchoff Stress)
 def P(u, phi):
-    return mu*(F - inv(F.T)) + r_k*inv(F.T)*ln(J) + 2*r_c*(J - phi)*J*inv(F.T) + F * (J**(-2/3)) * Mu_v * (A - (1/3)*(tr(A*C_bar) + 1)*inv(C_bar))
+    return mu*(F - inv(F.T)) + r_k*inv(F.T)*ln(J) + 2*r_c*(J - phi)*J*inv(F.T) + F * (J**(-2/3)) * Mu_v * (A_int - (1/3)*(tr(A_int*C_bar) + 1)*inv(C_bar))
 
 # Define the Strain (Lagrange-Green Strain)
 def E(u):
@@ -573,7 +573,7 @@ psiC_stag = (mu/2.0)*(Icstag - 3.0 - 2.0*ln(Jstag)) + kappa*(r_k/2.0)*(ln(Jstag)
 psiNC_stag = (r_a/2.0)*((1/2)*(1 - phistag)**2 - beta*(1 - phistag))**2
 psi_coup_stag = r_c*((Jstag - phistag)**2) + r_l2*dot(grad(phistag), grad(phistag)) 
 
-psi_vis_stag = (Mu_v/2)*(tr(A*Cstag_bar) + 1 - 3 - ln(det(A)))
+psi_vis_stag = (Mu_v/2)*(tr(A_int*Cstag_bar) + 1 - 3 - ln(det(A_int)))
 
 psi_stag = psiC_stag + psiNC_stag + psi_coup_stag + psi_vis_stag
 
@@ -676,15 +676,15 @@ for i, inc in enumerate(ind_steps):
     # Update the solution
     w0.vector()[:] = w.vector()[:]
     (u, phi) = w.split()
-    # Update for A, thank you Steven Yang
-    A = exp(-dt/Tau)*A + (1 - exp(-dt/Tau))*inv(C_bar)
+    # Update for A
+    A_int.assign(project(A_new, ST))
 
     # Postprocessing and save
     JScalar = project(J, JJ)
     EScalar = project(psi, EE)
     PTensor = project(P(u, phi), TT)
     STensor = project(E(u), ST)
-    ATensor = project(A, ST)
+    ATensor = project(A_int, ST)
 
     P_22 = P(u, phi)[1, 1]
     traction = assemble(P_22*ds(1))
