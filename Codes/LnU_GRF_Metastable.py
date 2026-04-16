@@ -69,10 +69,10 @@ phi_solver_param = {"nonlinear_solver": "snes",
 parameters.parse()
 userpar = Parameters("user")
 userpar.add("Mu", 1.0)                      # Shear Modulus
-userpar.add("Mu_v", 1.0)                    # Viscoelastic Shear Modulus
-userpar.add("Tau", 10000.0)                      # Relaxation Parameter
+userpar.add("Mu_v", 1)                    # Viscoelastic Shear Modulus
+userpar.add("Tau", 10)                      # Relaxation Parameter
 userpar.add("Kappa", 1.0)                    # Bulk Modulus
-userpar.add("eta", 5.0)                     # Artificial Viscosity
+userpar.add("eta", 0.001)                     # Artificial Viscosity
 userpar.add("dt", 1.0)                      # Quasi-Timestep
 userpar.add("CV", 1e-1)                     # Central Variance of the GRF
 userpar.add("corr_ratio", 4.0)              # Corr length to non-local length ratio
@@ -605,7 +605,8 @@ solver_phi.parameters.update(phi_solver_param)
 # Loading and Unloading
 ind_steps = np.concatenate([
     np.linspace(0, 0.8, 500),  # Loading phase
-    np.linspace(0.8, 0, 500)   # Unloading phase
+    np.linspace(0.8, 0, 500),   # Unloading phase
+    np.linspace(0, 0, 500)      # Holding Phase
 ])
 
 # Store the values of traction in y-direction
@@ -718,7 +719,7 @@ for i, inc in enumerate(ind_steps):
 # Post-Processing Section
 # -----------------------------------------------------------------------------------
 # Split the data
-mid = len(ind_steps) // 2
+mid = len(ind_steps) // 3
 disp_loading = ind_steps[:mid]
 force_loading = traction_list[:mid]
 disp_unloading = ind_steps[mid:]
